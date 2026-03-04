@@ -1,0 +1,146 @@
+﻿<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Tesla Wall Charger Tracker</title>
+  <link rel="stylesheet" href="/static/styles.css" />
+</head>
+<body>
+  <header>
+    <h1>Tesla Wall Charger Tracker</h1>
+    <p>Source: {{ base_url }} | Poll every {{ poll_interval }}s | Timezone: {{ timezone_name }}</p>
+  </header>
+
+  <section class="card">
+    <h2>PG&E Rate Plan</h2>
+    <form method="get" action="/" class="plan-form">
+      <label for="plan"><strong>Plan</strong></label>
+      <select id="plan" name="plan">
+        {% for p in plan_options %}
+          <option value="{{ p.code }}" {% if p.code == selected_plan %}selected{% endif %}>{{ p.code }} - {{ p.name }}</option>
+        {% endfor %}
+      </select>
+      <label for="vehicle"><strong>Vehicle</strong></label>
+      <select id="vehicle" name="vehicle">
+        <option value="" {% if not selected_vehicle %}selected{% endif %}>All Vehicles</option>
+        {% for v in vehicle_options %}
+          <option value="{{ v }}" {% if v == selected_vehicle %}selected{% endif %}>{{ v }}</option>
+        {% endfor %}
+      </select>
+      <label for="start_date"><strong>From</strong></label>
+      <input type="date" id="start_date" name="start_date" value="{{ start_date or '' }}" />
+      <label for="end_date"><strong>To</strong></label>
+      <input type="date" id="end_date" name="end_date" value="{{ end_date or '' }}" />
+      <button type="submit">Apply</button>
+      <button type="submit" formaction="/export.csv">Export CSV</button>
+    </form>
+    <p>{{ selected_plan_info.description }}</p>
+    <p>Rates effective: {{ selected_plan_info.effective_date }} | Source: <a href="{{ selected_plan_info.source_url }}" target="_blank" rel="noopener noreferrer">tariff PDF</a></p>
+    <p class="small-note">Session prices are energy-only TOU estimates from start/end time and total session kWh.</p>
+    <div class="summary">
+      <div><strong>Sessions:</strong> {{ summary.sessions_count }}</div>
+      <div><strong>Total Energy:</strong> {{ summary.total_kwh }} kWh</div>
+      <div><strong>Total Price:</strong> ${{ '%.2f'|format(summary.total_price) }}</div>
+    </div>
+    <div class="vehicle-manager">
+      <h3>Manage Vehicles</h3>
+      <form action="/vehicles/add" method="post" class="manage-form">
+        <input type="hidden" name="plan" value="{{ selected_plan }}" />
+        <input type="hidden" name="vehicle" value="{{ selected_vehicle }}" />
+        <input type="hidden" name="start_date" value="{{ start_date or '' }}" />
+        <input type="hidden" name="end_date" value="{{ end_date or '' }}" />
+        <input type="text" name="vehicle_label" placeholder="Add vehicle name..." />
+        <button type="submit">Add Vehicle</button>
+      </form>
+      <form action="/vehicles/delete" method="post" class="manage-form">
+        <input type="hidden" name="plan" value="{{ selected_plan }}" />
+        <input type="hidden" name="vehicle" value="{{ selected_vehicle }}" />
+        <input type="hidden" name="start_date" value="{{ start_date or '' }}" />
+        <input type="hidden" name="end_date" value="{{ end_date or '' }}" />
+        <select name="vehicle_label">
+          <option value="">Select vehicle</option>
+          {% for v in vehicle_options %}
+            <option value="{{ v }}">{{ v }}</option>
+          {% endfor %}
+        </select>
+        <button type="submit">Remove Vehicle</button>
+      </form>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Latest Telemetry (Live API)</h2>
+    {% if latest %}
+      <div class="grid">
+        <div><strong>Time ({{ timezone_name }})</strong><span>{{ latest.ts_display }}</span></div>
+        <div><strong>Vehicle Connected</strong><span>{{ 'Yes' if latest.vehicle_connected else 'No' }}</span></div>
+        <div><strong>Charging</strong><span>{{ 'Yes' if latest.charging else 'No' }}</span></div>
+        <div><strong>Voltage</strong><span>{{ latest.voltage_v or '-' }} V</span></div>
+        <div><strong>Current</strong><span>{{ latest.current_a or '-' }} A</span></div>
+        <div><strong>Power</strong><span>{{ latest.power_kw or '-' }} kW</span></div>
+        <div><strong>Session Duration (H:MM)</strong><span>{{ latest.session_hm }}</span></div>
+      </div>
+    {% else %}
+      <p>No live telemetry. Verify `TWC_BASE_URL` can reach your wall connector.</p>
+      {% if telemetry_error %}<p class="small-note">Error: {{ telemetry_error }}</p>{% endif %}
+    {% endif %}
+  </section>
+
+  <section class="card">
+    <h2>Charging Sessions</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Start ({{ timezone_name }})</th>
+          <th>End ({{ timezone_name }})</th>
+          <th>Duration (H:MM)</th>
+          <th>Energy (kWh est)</th>
+          <th>Price ({{ selected_plan }})</th>
+          <th>Rate Breakdown</th>
+          <th>Vehicle</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for s in sessions %}
+        <tr>
+          <td>{{ s.id }}</td>
+          <td>{{ s.started_at_display }}</td>
+          <td>{{ s.ended_at_display if s.ended_at else 'Active' }}</td>
+          <td>{{ s.duration_hm }}</td>
+          <td>{{ s.energy_kwh_est }}</td>
+          <td>{{ s.price_display }}</td>
+          <td>
+            {% if s.breakdown_lines %}
+              <div class="breakdown">
+                {% for line in s.breakdown_lines %}
+                  <div>{{ line }}</div>
+                {% endfor %}
+              </div>
+            {% else %}
+              -
+            {% endif %}
+          </td>
+          <td>
+            <form action="/sessions/{{ s.id }}/vehicle" method="post" class="vehicle-form">
+              <input type="hidden" name="plan" value="{{ selected_plan }}" />
+              <input type="hidden" name="vehicle" value="{{ selected_vehicle }}" />
+              <input type="hidden" name="start_date" value="{{ start_date or '' }}" />
+              <input type="hidden" name="end_date" value="{{ end_date or '' }}" />
+              <select name="vehicle_label" class="vehicle-select">
+                <option value="" {% if not s.vehicle_label %}selected{% endif %}>Unlabeled</option>
+                {% for v in vehicle_options %}
+                  <option value="{{ v }}" {% if s.vehicle_label == v %}selected{% endif %}>{{ v }}</option>
+                {% endfor %}
+              </select>
+              <button type="submit">Save</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+</body>
+</html>

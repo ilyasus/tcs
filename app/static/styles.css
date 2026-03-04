@@ -1,0 +1,165 @@
+﻿:root {
+  --bg: #f7f8fc;
+  --ink: #121212;
+  --card: #ffffff;
+  --line: #d8dbe6;
+  --accent: #0056d8;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  padding: 1.25rem;
+  font-family: "Segoe UI", Tahoma, sans-serif;
+  color: var(--ink);
+  background: radial-gradient(circle at top right, #e9efff, #f7f8fc 45%);
+}
+
+header h1 {
+  margin: 0;
+  font-size: 1.6rem;
+}
+
+header p {
+  margin-top: 0.35rem;
+  color: #3d4d65;
+}
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 1rem;
+  margin-top: 1rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.plan-form {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+select {
+  border: 1px solid #b9c4dd;
+  border-radius: 6px;
+  padding: 0.35rem 0.45rem;
+  min-width: 240px;
+  background: white;
+}
+
+input[type='date'] {
+  border: 1px solid #b9c4dd;
+  border-radius: 6px;
+  padding: 0.35rem 0.45rem;
+  background: white;
+}
+
+.small-note {
+  color: #4f5f77;
+  font-size: 0.88rem;
+}
+
+.summary {
+  margin-top: 0.7rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  color: #22334f;
+}
+
+.vehicle-manager {
+  margin-top: 0.9rem;
+  padding-top: 0.6rem;
+  border-top: 1px dashed #c8d1e7;
+}
+
+.vehicle-manager h3 {
+  margin: 0 0 0.5rem 0;
+  font-size: 1rem;
+}
+
+.manage-form {
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+  margin-bottom: 0.45rem;
+  flex-wrap: wrap;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 0.8rem;
+}
+
+.grid div {
+  background: #f9fbff;
+  border: 1px solid #e6ebf7;
+  border-radius: 8px;
+  padding: 0.6rem;
+}
+
+.grid strong {
+  display: block;
+  font-size: 0.8rem;
+  color: #4f5f77;
+  margin-bottom: 0.2rem;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.93rem;
+}
+
+th, td {
+  border-bottom: 1px solid var(--line);
+  padding: 0.55rem;
+  text-align: left;
+  vertical-align: top;
+}
+
+th {
+  background: #f2f5fb;
+}
+
+.breakdown {
+  font-size: 0.82rem;
+  color: #34445e;
+  line-height: 1.35;
+  min-width: 180px;
+}
+
+.vehicle-form {
+  display: flex;
+  gap: 0.4rem;
+  min-width: 210px;
+}
+
+.vehicle-select {
+  min-width: 150px;
+}
+
+input[type='text'] {
+  flex: 1;
+  border: 1px solid #b9c4dd;
+  border-radius: 6px;
+  padding: 0.35rem 0.45rem;
+}
+
+button {
+  border: 1px solid #0f4fb3;
+  background: var(--accent);
+  color: white;
+  border-radius: 6px;
+  padding: 0.35rem 0.6rem;
+  cursor: pointer;
+}
+
+@media (max-width: 900px) {
+  body { padding: 0.7rem; }
+  table { display: block; overflow-x: auto; }
+}
