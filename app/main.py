@@ -111,16 +111,19 @@ def _read_live_telemetry() -> tuple[Optional[dict], Optional[str]]:
         logging.warning("Live telemetry read failed: %s", exc)
         return None, str(exc)
 
+    energy_wh = sample.meter_wh if sample.meter_wh is not None else sample.session_energy_wh
+
     latest = {
         "ts": sample.ts.isoformat(),
         "vehicle_connected": int(sample.vehicle_connected),
         "charging": int(sample.charging),
         "session_s": sample.session_s,
+        "session_energy_wh": sample.session_energy_wh,
         "voltage_v": sample.voltage_v,
         "current_a": sample.current_a,
         "power_kw": sample.power_kw,
         "meter_wh": sample.meter_wh,
-        "meter_kwh": round(sample.meter_wh / 1000.0, 3) if sample.meter_wh is not None else None,
+        "meter_kwh": round(energy_wh / 1000.0, 3) if energy_wh is not None else None,
     }
     latest["ts_display"] = _format_dt(latest.get("ts"))
     latest["session_hm"] = _format_duration_hm(latest.get("session_s"))

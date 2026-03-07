@@ -36,7 +36,12 @@ Thumbs.db
 *.sqlite
 *.sqlite3
 *.log
+data/
+*.pid
+*.tmp
+*.bak
 
 # Environment files
 .env
 .env.*
+.envrc

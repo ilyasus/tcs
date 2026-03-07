@@ -80,7 +80,7 @@
         <div><strong>Current</strong><span>{{ latest.current_a or '-' }} A</span></div>
         <div><strong>Power</strong><span>{{ latest.power_kw or '-' }} kW</span></div>
         <div><strong>Session Duration (H:MM)</strong><span>{{ latest.session_hm }}</span></div>
-        <div><strong>Current Energy (meter)</strong><span>{{ latest.meter_kwh if latest.meter_kwh is not none else '-' }} kWh</span></div>
+        <div><strong>Current Energy</strong><span>{{ latest.meter_kwh if latest.meter_kwh is not none else '-' }} kWh</span></div>
       </div>
     {% else %}
       <p>No live telemetry. Verify `TWC_BASE_URL` can reach your wall connector.</p>

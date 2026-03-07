@@ -152,14 +152,26 @@ class Poller:
             power_kw = (voltage_v * current_a) / 1000.0
 
         meter_wh = None
-        meter_candidates = (
+        meter_candidates_wh = (
             "energy_wh",
             "lifetime_wh",
             "grid_energy_wh",
             "meter_energy_wh",
             "lifetime_energy_wh",
+            "total_energy_wh",
+            "total_lifetime_wh",
         )
-        for key in meter_candidates:
+        meter_candidates_kwh = (
+            "energy_kwh",
+            "lifetime_kwh",
+            "grid_energy_kwh",
+            "meter_energy_kwh",
+            "lifetime_energy_kwh",
+            "total_energy_kwh",
+            "total_lifetime_kwh",
+        )
+
+        for key in meter_candidates_wh:
             raw = vitals.get(key)
             if raw is None:
                 continue
@@ -168,6 +180,17 @@ class Poller:
                 break
             except (TypeError, ValueError):
                 continue
+
+        if meter_wh is None:
+            for key in meter_candidates_kwh:
+                raw = vitals.get(key)
+                if raw is None:
+                    continue
+                try:
+                    meter_wh = float(raw) * 1000.0
+                    break
+                except (TypeError, ValueError):
+                    continue
 
         return TelemetrySample(
             ts=datetime.now(tz=timezone.utc),
