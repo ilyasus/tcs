@@ -80,6 +80,7 @@
         <div><strong>Current</strong><span>{{ latest.current_a or '-' }} A</span></div>
         <div><strong>Power</strong><span>{{ latest.power_kw or '-' }} kW</span></div>
         <div><strong>Session Duration (H:MM)</strong><span>{{ latest.session_hm }}</span></div>
+        <div><strong>Current Energy (meter)</strong><span>{{ latest.meter_kwh if latest.meter_kwh is not none else '-' }} kWh</span></div>
       </div>
     {% else %}
       <p>No live telemetry. Verify `TWC_BASE_URL` can reach your wall connector.</p>
@@ -129,11 +130,14 @@
               <input type="hidden" name="start_date" value="{{ start_date or '' }}" />
               <input type="hidden" name="end_date" value="{{ end_date or '' }}" />
               <select name="vehicle_label" class="vehicle-select">
-                <option value="" {% if not s.vehicle_label %}selected{% endif %}>Unlabeled</option>
+                <option value="" {% if not s.vehicle_label and not s.inferred_vehicle_label %}selected{% endif %}>Unlabeled</option>
                 {% for v in vehicle_options %}
-                  <option value="{{ v }}" {% if s.vehicle_label == v %}selected{% endif %}>{{ v }}</option>
+                  <option value="{{ v }}" {% if s.vehicle_label == v or (not s.vehicle_label and s.inferred_vehicle_label == v) %}selected{% endif %}>{{ v }}</option>
                 {% endfor %}
               </select>
+              {% if not s.vehicle_label and s.inferred_vehicle_label %}
+                <span class="infer-note">Suggested: {{ s.inferred_vehicle_label }} ({{ s.inferred_vehicle_conf_pct }}%)</span>
+              {% endif %}
               <button type="submit">Save</button>
             </form>
           </td>

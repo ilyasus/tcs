@@ -1,68 +1,42 @@
 ﻿from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Optional
 
 from .database import get_conn
 
 
 class Repository:
-    def get_open_session(self) -> Optional[int]:
-        with get_conn() as conn:
-            row = conn.execute(
-                "SELECT id FROM sessions WHERE ended_at IS NULL ORDER BY id DESC LIMIT 1"
-            ).fetchone()
-            return int(row["id"]) if row else None
-
-    def create_session(self, started_at: datetime) -> int:
-        with get_conn() as conn:
-            cur = conn.execute(
-                "INSERT INTO sessions (started_at) VALUES (?)",
-                (started_at.isoformat(),),
-            )
-            return int(cur.lastrowid)
-
-    def update_session_progress(
+    def insert_closed_session(
         self,
-        session_id: int,
+        *,
+        started_at: datetime,
         ended_at: datetime,
         duration_s: int,
-        energy_kwh_increment: float,
-        power_kw: float,
-    ) -> None:
+        energy_kwh: float,
+        max_power_kw: float,
+        start_meter_wh: Optional[float] = None,
+        end_meter_wh: Optional[float] = None,
+    ) -> int:
         with get_conn() as conn:
-            conn.execute(
+            cur = conn.execute(
                 """
-                UPDATE sessions
-                SET ended_at = ?,
-                    duration_s = ?,
-                    energy_kwh_est = energy_kwh_est + ?,
-                    max_power_kw = CASE
-                        WHEN max_power_kw > ? THEN max_power_kw
-                        ELSE ?
-                    END
-                WHERE id = ?
+                INSERT INTO sessions (
+                    started_at, ended_at, duration_s, energy_kwh_est, max_power_kw,
+                    start_meter_wh, end_meter_wh
+                ) VALUES (?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
+                    started_at.isoformat(),
                     ended_at.isoformat(),
-                    duration_s,
-                    max(0.0, energy_kwh_increment),
-                    power_kw,
-                    power_kw,
-                    session_id,
+                    max(0, int(duration_s)),
+                    max(0.0, float(energy_kwh)),
+                    max(0.0, float(max_power_kw)),
+                    float(start_meter_wh) if start_meter_wh is not None else None,
+                    float(end_meter_wh) if end_meter_wh is not None else None,
                 ),
             )
-
-    def close_session(self, session_id: int, ended_at: datetime, duration_s: int) -> None:
-        with get_conn() as conn:
-            conn.execute(
-                """
-                UPDATE sessions
-                SET ended_at = ?, duration_s = ?
-                WHERE id = ?
-                """,
-                (ended_at.isoformat(), duration_s, session_id),
-            )
+            return int(cur.lastrowid)
 
     def list_sessions(self, limit: int = 200) -> list[dict]:
         with get_conn() as conn:
@@ -136,10 +110,3 @@ class Repository:
                 """,
                 (round(max(0.0, float(price_usd)), 2), plan_code, price_breakdown_json, session_id),
             )
-
-    @staticmethod
-    def elapsed_seconds(started_at_iso: str, ended_at: datetime) -> int:
-        started_at = datetime.fromisoformat(started_at_iso)
-        if started_at.tzinfo is None:
-            started_at = started_at.replace(tzinfo=timezone.utc)
-        return max(0, int((ended_at - started_at).total_seconds()))

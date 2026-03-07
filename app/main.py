@@ -5,6 +5,7 @@ import io
 import json
 import logging
 from datetime import date, datetime, time, timedelta, timezone
+import math
 from pathlib import Path
 import re
 from typing import Optional
@@ -90,7 +91,7 @@ def _format_dt(ts: Optional[str]) -> str:
     dt = _parse_iso(ts)
     if dt is None:
         return "-"
-    return dt.astimezone(APP_TZ).strftime("%Y-%m-%d %H:%M:%S")
+    return dt.astimezone(APP_TZ).strftime("%Y-%m-%d %H:%M")
 
 
 def _format_duration_hm(total_seconds: Optional[int]) -> str:
@@ -118,7 +119,8 @@ def _read_live_telemetry() -> tuple[Optional[dict], Optional[str]]:
         "voltage_v": sample.voltage_v,
         "current_a": sample.current_a,
         "power_kw": sample.power_kw,
-        "lifetime_kwh": sample.lifetime_kwh,
+        "meter_wh": sample.meter_wh,
+        "meter_kwh": round(sample.meter_wh / 1000.0, 3) if sample.meter_wh is not None else None,
     }
     latest["ts_display"] = _format_dt(latest.get("ts"))
     latest["session_hm"] = _format_duration_hm(latest.get("session_s"))
@@ -187,6 +189,67 @@ def _overlap_seconds(
     return max(0, int((b - a).total_seconds()))
 
 
+def _build_inference_examples(all_sessions: list[dict]) -> list[dict]:
+    examples: list[dict] = []
+    for session in all_sessions:
+        label = (session.get("vehicle_label") or "").strip()
+        if not label:
+            continue
+        start_dt = _parse_iso(session.get("started_at"))
+        if start_dt is None:
+            continue
+        local_start = start_dt.astimezone(APP_TZ)
+        examples.append(
+            {
+                "label": label,
+                "hour": local_start.hour + (local_start.minute / 60.0),
+                "weekend": local_start.weekday() >= 5,
+                "energy_kwh": float(session.get("energy_kwh_est") or 0.0),
+                "duration_h": max(0.0, float(session.get("duration_s") or 0.0) / 3600.0),
+            }
+        )
+    return examples
+
+
+def _infer_vehicle_for_session(session: dict, examples: list[dict]) -> tuple[Optional[str], float]:
+    if not examples:
+        return None, 0.0
+
+    start_dt = _parse_iso(session.get("started_at"))
+    if start_dt is None:
+        return None, 0.0
+    local_start = start_dt.astimezone(APP_TZ)
+    target_hour = local_start.hour + (local_start.minute / 60.0)
+    target_weekend = local_start.weekday() >= 5
+    target_energy = float(session.get("energy_kwh_est") or 0.0)
+    target_duration_h = max(0.0, float(session.get("duration_s") or 0.0) / 3600.0)
+
+    score_by_label: dict[str, float] = {}
+    for ex in examples:
+        hour_diff = abs(target_hour - ex["hour"])
+        hour_diff = min(hour_diff, 24.0 - hour_diff)
+        hour_score = math.exp(-(hour_diff / 4.5) ** 2)
+
+        energy_den = max(8.0, ex["energy_kwh"], target_energy)
+        energy_score = 1.0 - min(1.0, abs(target_energy - ex["energy_kwh"]) / energy_den)
+
+        duration_den = max(2.0, ex["duration_h"], target_duration_h)
+        duration_score = 1.0 - min(1.0, abs(target_duration_h - ex["duration_h"]) / duration_den)
+
+        weekend_score = 1.0 if target_weekend == ex["weekend"] else 0.6
+        score = (0.45 * hour_score) + (0.30 * energy_score) + (0.20 * duration_score) + (0.05 * weekend_score)
+        score_by_label[ex["label"]] = max(score_by_label.get(ex["label"], 0.0), score)
+
+    if not score_by_label:
+        return None, 0.0
+
+    sorted_scores = sorted(score_by_label.items(), key=lambda item: item[1], reverse=True)
+    best_label, best_score = sorted_scores[0]
+    total = sum(s for _, s in sorted_scores)
+    confidence = best_score / total if total > 0 else 0.0
+    return best_label, confidence
+
+
 def _apply_filters_and_pricing(
     *,
     selected_plan: str,
@@ -194,14 +257,15 @@ def _apply_filters_and_pricing(
     start_date_str: Optional[str],
     end_date_str: Optional[str],
 ) -> tuple[list[dict], dict, str, str]:
-    sessions = repository.list_sessions(limit=300)
+    all_sessions = repository.list_sessions(limit=600)
+    inference_examples = _build_inference_examples(all_sessions)
     start_utc, end_utc, normalized_start, normalized_end = _period_bounds_utc(start_date_str, end_date_str)
 
     filtered: list[dict] = []
     total_kwh = 0.0
     total_price = 0.0
 
-    for session in sessions:
+    for session in all_sessions:
         if selected_vehicle and (session.get("vehicle_label") or "").strip() != selected_vehicle:
             continue
 
@@ -246,6 +310,13 @@ def _apply_filters_and_pricing(
         session["price_usd"] = filtered_price
         session["price_display"] = f"${filtered_price:.2f}"
         session["breakdown_lines"] = _breakdown_lines(scaled_breakdown)
+        if not (session.get("vehicle_label") or "").strip():
+            inferred_label, inferred_confidence = _infer_vehicle_for_session(session, inference_examples)
+            session["inferred_vehicle_label"] = inferred_label
+            session["inferred_vehicle_conf_pct"] = int(round(inferred_confidence * 100))
+        else:
+            session["inferred_vehicle_label"] = None
+            session["inferred_vehicle_conf_pct"] = 0
 
         total_kwh += filtered_energy
         total_price += filtered_price

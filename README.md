@@ -6,9 +6,10 @@ Python web application that polls a Tesla Wall Connector API on your local netwo
 - Polls `/api/1/vitals` from Tesla Wall Connector
 - Stores sessions only in SQLite (no telemetry history table)
 - Auto-detects charging sessions based on `contactor_closed`
-- Estimates session energy from power over time
+- Writes session rows to DB only when a session closes
+- Computes session energy from meter delta (`energy_wh`-style fields) when available, with power*time fallback
 - Estimates session price from PG&E TOU plans (EV2-A, EV-B, E-ELEC)
-- Live telemetry in UI directly from API
+- Live telemetry in UI directly from API (including current meter energy)
 - Filters (vehicle/date), totals, and CSV export
 
 ## Setup

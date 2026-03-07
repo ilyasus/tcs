@@ -143,6 +143,12 @@ th {
   min-width: 150px;
 }
 
+.infer-note {
+  font-size: 0.78rem;
+  color: #4f5f77;
+  white-space: nowrap;
+}
+
 input[type='text'] {
   flex: 1;
   border: 1px solid #b9c4dd;

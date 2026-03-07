@@ -42,6 +42,8 @@ def init_db() -> None:
                 duration_s INTEGER DEFAULT 0,
                 energy_kwh_est REAL DEFAULT 0,
                 max_power_kw REAL DEFAULT 0,
+                start_meter_wh REAL,
+                end_meter_wh REAL,
                 vehicle_label TEXT,
                 price_usd REAL DEFAULT 0,
                 price_plan TEXT,
@@ -53,6 +55,8 @@ def init_db() -> None:
         _add_column_if_missing(conn, "sessions", "price_usd REAL DEFAULT 0")
         _add_column_if_missing(conn, "sessions", "price_plan TEXT")
         _add_column_if_missing(conn, "sessions", "price_breakdown_json TEXT")
+        _add_column_if_missing(conn, "sessions", "start_meter_wh REAL")
+        _add_column_if_missing(conn, "sessions", "end_meter_wh REAL")
 
         conn.execute("DROP TABLE IF EXISTS telemetry")
         conn.execute(
