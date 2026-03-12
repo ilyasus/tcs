@@ -68,11 +68,9 @@ class Poller:
 
     @staticmethod
     def _is_active(sample: TelemetrySample) -> bool:
-        return bool(
-            sample.charging
-            or (sample.session_s is not None and sample.session_s > 0)
-            or (sample.session_energy_wh is not None and sample.session_energy_wh > 0)
-        )
+        if sample.session_s is not None:
+            return sample.session_s > 0
+        return bool(sample.charging or (sample.session_energy_wh is not None and sample.session_energy_wh > 0))
 
     def poll_once(self) -> None:
         payload = self.client.read_sample()
