@@ -8,7 +8,7 @@ Python web application that polls a Tesla Wall Connector API on your local netwo
 - Auto-detects charging sessions based on `contactor_closed`
 - Writes session rows to DB only when a session closes
 - Computes session energy from meter delta (`energy_wh`-style fields) when available, with power*time fallback
-- Estimates session price from PG&E TOU plans (EV2-A, EV-B, E-ELEC)
+- Estimates session price from PG&E residential and EV plans
 - Live telemetry in UI directly from API (including current meter energy)
 - Filters (vehicle/date), totals, and CSV export
 
@@ -26,7 +26,7 @@ Environment variables:
 - `TWC_TIMEOUT_SECONDS` (default: `4`)
 - `APP_DB_PATH` (default: `./tesla_wall_charger.db`)
 - `APP_TIMEZONE` (default: `America/Los_Angeles`)
-- `APP_RATE_PLAN` (default: `EV2-A`; options: `EV2-A`, `EV-B`, `E-ELEC`)
+- `APP_RATE_PLAN` (default: `EV2-A`; options: `E-1-TIER1`, `E-1-TIER2`, `E-TOU-C-BL`, `E-TOU-C-AB`, `E-TOU-D-BL`, `E-TOU-D-AB`, `EV2-A`, `EV-B`, `E-ELEC`)
 
 Example:
 ```powershell
@@ -45,7 +45,8 @@ Open: `http://localhost:8080`
 
 ## Notes
 - Wall Connector API fields vary by firmware. This app maps common keys and falls back where possible.
-- PG&E TOU pricing is modeled from tariff schedules and used as an energy-only estimate.
+- PG&E pricing is modeled from the March 1, 2026 residential pricing sheet and tariff schedules, and is used as an energy-only estimate.
+- Baseline-sensitive residential plans are split into explicit variants such as `E-TOU-C-BL` and `E-TOU-C-AB` because the app does not track whole-home monthly baseline usage.
 - On Windows, timezone names like `America/Los_Angeles` require `tzdata` installed from `requirements.txt`.
 - If live telemetry is empty, test API manually:
 ```powershell

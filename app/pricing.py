@@ -69,6 +69,48 @@ def is_holiday(d: date) -> bool:
 
 
 PLANS: dict[str, PlanInfo] = {
+    "E-1-TIER1": PlanInfo(
+        code="E-1-TIER1",
+        name="PG&E E-1 Tier 1",
+        description="Residential tiered plan using Tier 1 pricing only (up to 100% of baseline allocation).",
+        effective_date="2026-03-01",
+        source_url="https://www.pge.com/assets/pge/docs/account/rate-plans/residential-electric-rate-plan-pricing.pdf.coredownload.pdf",
+    ),
+    "E-1-TIER2": PlanInfo(
+        code="E-1-TIER2",
+        name="PG&E E-1 Tier 2",
+        description="Residential tiered plan using Tier 2 pricing only (>100% of baseline allocation).",
+        effective_date="2026-03-01",
+        source_url="https://www.pge.com/assets/pge/docs/account/rate-plans/residential-electric-rate-plan-pricing.pdf.coredownload.pdf",
+    ),
+    "E-TOU-C-BL": PlanInfo(
+        code="E-TOU-C-BL",
+        name="PG&E E-TOU-C Below Baseline",
+        description="Residential TOU plan, 4-9 p.m. every day, using below-baseline pricing.",
+        effective_date="2026-03-01",
+        source_url="https://www.pge.com/assets/pge/docs/account/rate-plans/residential-electric-rate-plan-pricing.pdf.coredownload.pdf",
+    ),
+    "E-TOU-C-AB": PlanInfo(
+        code="E-TOU-C-AB",
+        name="PG&E E-TOU-C Above Baseline",
+        description="Residential TOU plan, 4-9 p.m. every day, using above-baseline pricing.",
+        effective_date="2026-03-01",
+        source_url="https://www.pge.com/assets/pge/docs/account/rate-plans/residential-electric-rate-plan-pricing.pdf.coredownload.pdf",
+    ),
+    "E-TOU-D-BL": PlanInfo(
+        code="E-TOU-D-BL",
+        name="PG&E E-TOU-D Below Baseline",
+        description="Residential TOU plan, 5-8 p.m. weekdays, using below-baseline pricing.",
+        effective_date="2026-03-01",
+        source_url="https://www.pge.com/assets/pge/docs/account/rate-plans/residential-electric-rate-plan-pricing.pdf.coredownload.pdf",
+    ),
+    "E-TOU-D-AB": PlanInfo(
+        code="E-TOU-D-AB",
+        name="PG&E E-TOU-D Above Baseline",
+        description="Residential TOU plan, 5-8 p.m. weekdays, using above-baseline pricing.",
+        effective_date="2026-03-01",
+        source_url="https://www.pge.com/assets/pge/docs/account/rate-plans/residential-electric-rate-plan-pricing.pdf.coredownload.pdf",
+    ),
     "EV2-A": PlanInfo(
         code="EV2-A",
         name="PG&E EV2-A",
@@ -91,6 +133,52 @@ PLANS: dict[str, PlanInfo] = {
         source_url="https://www.pge.com/tariffs/assets/pdf/tariffbook/ELEC_SCHEDS_E-ELEC.pdf",
     ),
 }
+
+
+def _e1_tier1_period_rate(dt: datetime) -> tuple[str, float]:
+    return "off_peak", 0.33
+
+
+def _e1_tier2_period_rate(dt: datetime) -> tuple[str, float]:
+    return "peak", 0.41
+
+
+def _etouc_below_baseline_period_rate(dt: datetime) -> tuple[str, float]:
+    summer = dt.month in (6, 7, 8, 9)
+    h = dt.hour + dt.minute / 60.0
+    if 16 <= h < 21:
+        return "peak", (0.44 if summer else 0.32)
+    return "off_peak", (0.32 if summer else 0.29)
+
+
+def _etouc_above_baseline_period_rate(dt: datetime) -> tuple[str, float]:
+    summer = dt.month in (6, 7, 8, 9)
+    h = dt.hour + dt.minute / 60.0
+    if 16 <= h < 21:
+        return "peak", (0.52 if summer else 0.40)
+    return "off_peak", (0.40 if summer else 0.37)
+
+
+def _etoud_below_baseline_period_rate(dt: datetime) -> tuple[str, float]:
+    summer = dt.month in (6, 7, 8, 9)
+    h = dt.hour + dt.minute / 60.0
+    weekend_or_holiday = dt.weekday() >= 5 or is_holiday(dt.date())
+    if weekend_or_holiday:
+        return "off_peak", (0.34 if summer else 0.35)
+    if 17 <= h < 20:
+        return "peak", (0.48 if summer else 0.39)
+    return "off_peak", (0.34 if summer else 0.35)
+
+
+def _etoud_above_baseline_period_rate(dt: datetime) -> tuple[str, float]:
+    summer = dt.month in (6, 7, 8, 9)
+    h = dt.hour + dt.minute / 60.0
+    weekend_or_holiday = dt.weekday() >= 5 or is_holiday(dt.date())
+    if weekend_or_holiday:
+        return "off_peak", (0.34 if summer else 0.35)
+    if 17 <= h < 20:
+        return "peak", (0.48 if summer else 0.39)
+    return "off_peak", (0.34 if summer else 0.35)
 
 
 def _ev2_period_rate(dt: datetime) -> tuple[str, float]:
@@ -131,6 +219,12 @@ def _evb_period_rate(dt: datetime) -> tuple[str, float]:
 
 
 _PERIOD_RATE_FN: dict[str, Callable[[datetime], tuple[str, float]]] = {
+    "E-1-TIER1": _e1_tier1_period_rate,
+    "E-1-TIER2": _e1_tier2_period_rate,
+    "E-TOU-C-BL": _etouc_below_baseline_period_rate,
+    "E-TOU-C-AB": _etouc_above_baseline_period_rate,
+    "E-TOU-D-BL": _etoud_below_baseline_period_rate,
+    "E-TOU-D-AB": _etoud_above_baseline_period_rate,
     "EV2-A": _ev2_period_rate,
     "EV-B": _evb_period_rate,
     "E-ELEC": _eelec_period_rate,
